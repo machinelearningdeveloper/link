@@ -1,0 +1,1 @@
+python link.py --earlier_file=${first_input_file} --later_file=${second_input_file} --output_file=${output_file} --configuration_file=conf/link.yaml

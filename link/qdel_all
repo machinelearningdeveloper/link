@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# qdel all queued and running jobs
+
+job_numbers=($(qstat -u "${USER}" | grep -E ' (Q|R) ' | sed -E 's/\..+//'))
+for job_number in "${job_numbers[@]}"; do
+    echo qdel "${job_number}"
+    qdel "${job_number}"
+done
+exit 0

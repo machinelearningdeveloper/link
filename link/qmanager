@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Automatically submit jobs to the queue as it empties.
+#
+# Invoke qmanager with a pattern which will be used to find
+# files to submit as jobs to the queue.
+#
+# Example: /bin/bash qmanager add_variables_[0-9][0-9].job
+#
+# The example invocation will launch qmanager against all files named
+# add_variables_[number].job, where [number] is a two-digit number.
+# qmanager will submit to the queue every file in the current
+# directory with a matching name.
+
+for job in "${@}"; do
+    n_jobs=$(qstat -u "${USER}" | grep -E ' (Q|R) ' | wc -l)
+    while [ $n_jobs -ge 500 ]; do
+        sleep 5
+        n_jobs=$(qstat -u "${USER}" | grep -E ' (Q|R) ' | wc -l)
+    done
+    job_no=$(qsub "${job}" | sed -E 's/\..+//')
+    echo "Submitting ${job} (job #${job_no})" 
+done
+echo "Done."
+exit 0

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+first_file=$1
+second_file=$2
+split_file_lines=$3
+job_file_lines=$4
+
+split_input_file () {
+    original_file=$1
+    split_file_prefix=$2
+    n_lines=$(wc -l "${original_file}" | sed -E 's/[[:space:]].+$//')
+    n_files=$(expr "${n_lines}" / "${split_file_lines}")
+    remainder=$(expr "${n_lines}" % "${split_file_lines}")
+    if [[ "${remainder}" -ne 0 ]]; then
+        n_files=$(expr "${n_files}" + 1)
+    fi
+
+    suffix_length=$(expr length "${n_files}")
+
+    echo "Splitting ${original_file}..."
+
+    echo split --lines="${split_file_lines}" --numeric-suffixes --suffix-length="${suffix_length}" "${original_file}" "${split_file_prefix}"
+    split --lines="${split_file_lines}" --numeric-suffixes --suffix-length="${suffix_length}" "${original_file}" "${split_file_prefix}"
+
+    header_file=$(echo "${original_file}" | sed 's/.txt/_header&/')
+
+    split_files=($(ls "${split_file_prefix}"*[0-9]))
+    for split_file in "${split_files[@]}"; do
+        if [ ! -f "${header_file}" ]; then
+            head -n 1 "${split_file}" > "${header_file}"
+            mv -iv "${split_file}" "${split_file}.txt"
+        else
+            cp -iv "${header_file}" "${split_file}.txt"
+            cat "${split_file}" >> "${split_file}.txt"
+            rm -v "${split_file}"
+        fi
+    done
+
+    rm -v "${header_file}"
+}
+
+first_split_file_prefix=$(echo "${first_file}" | sed -E 's/.txt/_/')
+second_split_file_prefix=$(echo "${second_file}" | sed -E 's/.txt/_/')
+split_job_file_prefix="${first_split_file_prefix}${second_split_file_prefix}"
+
+split_input_file "${first_file}" "${first_split_file_prefix}"
+split_input_file "${second_file}" "${second_split_file_prefix}"
+
+cmd_template=$(<"cmd_template.txt")
+
+if [ -f commands.list ]; then
+    rm -v commands.list
+fi
+
+echo "Creating list of commands in commands.list..."
+
+for first_input_file in $(ls | egrep "^${first_split_file_prefix}[0-9]+.txt$"); do
+    for second_input_file in $(ls | egrep "^${second_split_file_prefix}[0-9]+.txt$"); do
+        replacement_script="s/^${first_file_prefix}//; s/.txt\$//"
+        first_part=$(echo "${first_input_file}" | sed "${replacement_script}")
+        replacement_script="s/^${second_file_prefix}//; s/.txt\$//"
+        second_part=$(echo "${second_input_file}" | sed "${replacement_script}")
+        output_file=results_"${first_part}"_"${second_part}".txt
+        echo "${cmd_template}" | sed "s/\${first_input_file}/$first_input_file/; s/\${second_input_file}/$second_input_file/; s/\${output_file}/$output_file/"  >> commands.list
+    done
+done
+
+n_lines=$(wc -l commands.list | sed -E 's/[[:space:]].+$//')
+echo "Detected ${n_lines} lines in commands.list..."
+n_files=$(expr "${n_lines}" / "${job_file_lines}")
+set +e
+remainder=$(expr "${n_lines}" % "${job_file_lines}")
+set -e
+if [[ "${remainder}" -ne 0 ]]; then
+    n_files=$(expr "${n_files}" + 1)
+fi
+echo "${n_files} job files will be created..."
+suffix_length=$(expr length "${n_files}")
+echo "Splitting commands.list..."
+echo split --lines="${job_file_lines}" --numeric-suffixes --suffix-length="${suffix_length}" commands.list "${split_job_file_prefix}"
+split --lines="${job_file_lines}" --numeric-suffixes --suffix-length="${suffix_length}" commands.list "${split_job_file_prefix}"
+
+cmd_files=($(ls "${split_job_file_prefix}"*[0-9]))
+for cmd_file in "${cmd_files[@]}"; do
+    job_file="${cmd_file}.job"
+    cp -iv "job_template.txt" "${job_file}"
+    cat "${cmd_file}" >> "${job_file}"
+    rm -v "${cmd_file}"
+done

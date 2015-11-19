@@ -1,0 +1,11 @@
+combine_scores: [name_wink, surname_wink]
+combined_threshold: 1.7
+default_initial_score: .7
+earlier_sep: '|'
+later_sep: '|'
+output_sep: '|'
+chunksize: 1000
+functions:
+- {function: window, name: AGEDIFF, columns: [AGE, AGE], threshold: 4}
+- {function: winkler, name: surname_wink, columns: [LASTNAME1, LASTNAME1], threshold: .9}
+- {function: initial, name: name_wink, columns: [NAME1, NAME1], threshold: .7}

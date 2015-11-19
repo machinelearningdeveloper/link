@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#PBS -l walltime=4:00:00,mem=5gb,nodes=1:ppn=1
+#PBS -m abe
+
+cd $PBS_O_WORKDIR
+
